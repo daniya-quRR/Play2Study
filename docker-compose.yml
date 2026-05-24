@@ -30,3 +30,8 @@ services:
       - "3000:80"
     depends_on:
       - backend
+services:
+  app:
+    build: .
+    ports:
+      - "5001:5000"
