@@ -12,23 +12,26 @@ from typing import Optional, List
 import random
 import string
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+import os
+import uvicorn
+from fastapi.responses import FileResponse
 
 # --- КОНФИГ ПОЧТЫ (ЗАПОЛНИ СВОИМИ ДАННЫМИ!) ---
 conf = ConnectionConfig(
-    MAIL_USERNAME = "batyrtorakhan@gmail.com",
-    MAIL_PASSWORD = "sbgjjkvcevnmmgws",
-    MAIL_FROM = "batyrtorakhan@gmail.com",
-    MAIL_PORT = 587,
-    MAIL_SERVER = "smtp.gmail.com",
+    MAIL_USERNAME = os.getenv("MAIL_USERNAME", "batyrtorakhan@gmail.com"),
+    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "sbgjjkvcevnmmgws"),
+    MAIL_FROM = os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME", "batyrtorakhan@gmail.com")),
+    MAIL_PORT = int(os.getenv("MAIL_PORT", "587")),
+    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
     MAIL_STARTTLS = True,
     MAIL_SSL_TLS = False,
     USE_CREDENTIALS = True,
     VALIDATE_CERTS = True
 )
 
-SECRET_KEY = "super-secret-key-2026-change-this"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 30
+SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-2026-change-this")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", "30"))
 
 app = FastAPI(title="Play2Study API v2")
 
@@ -39,9 +42,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # --- БАЗА ДАННЫХ ---
-DATABASE_URL = "sqlite:///./play2study.db"
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./play2study.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -255,4 +257,23 @@ def get_leaderboard(db: Session = Depends(get_db)):
         res.append({"username": u.username, "level": s.level, "points": s.points, "rank": get_rank_name(s.level)})
     return res
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # Run with the PORT provided by the hosting environment (e.g. Render)
+    port = int(os.getenv("PORT", "5000"))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
+
+
+# Serve index and static assets for simple hosting setups (GET only)
+@app.get("/", response_class=FileResponse)
+def serve_index():
+    if os.path.exists("index.html"):
+        return FileResponse("index.html")
+    raise HTTPException(status_code=404, detail="index.html not found")
+
+
+@app.get("/{full_path:path}")
+def serve_static(full_path: str):
+    # If the requested path exists on disk (styles, JS, assets), serve it
+    if os.path.isfile(full_path):
+        return FileResponse(full_path)
+    # Otherwise return 404 so API endpoints (POST/GET) behave as defined above
+    raise HTTPException(status_code=404, detail="Not Found")
