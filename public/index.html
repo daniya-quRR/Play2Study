@@ -287,7 +287,7 @@ body {
    LAYOUT SHELL
    ============================================================ */
 #app {
-  position: relative; z-index: 1;
+  position: relative; z-index: 1; 
   min-height: 100vh;
   padding-bottom: calc(var(--dock-h) + 24px);
   transition: opacity var(--transition-slow), transform var(--transition-slow), filter var(--transition-slow);
@@ -298,7 +298,7 @@ body.auth-locked #cmd-dock { opacity: 0; filter: blur(8px); transform: scale(0.9
 /* ============================================================
    COMMAND HEADER
    ============================================================ */
-#cmd-header {
+#cmd-header { 
   position: sticky; top: 0; z-index: 100;
   background: rgba(3,3,3,0.85);
   backdrop-filter: var(--glass-blur);
