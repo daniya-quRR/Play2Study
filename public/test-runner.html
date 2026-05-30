@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Test Runner</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="results"></div>
+  <script src="suite.js"></script>
+  <script>
+    // Run all tests on load
+    window.addEventListener('load', () => { if (window.runAll) runAll(); });
+  </script>
+</body>
+</html>
