@@ -265,8 +265,15 @@ if __name__ == "__main__":
 # Serve index and static assets for simple hosting setups (GET only)
 @app.get("/", response_class=FileResponse)
 def serve_index():
+    # Prefer the Firebase-ready `public/index.html` when present.
+    public_index = os.path.join(os.getcwd(), "public", "index.html")
+    if os.path.exists(public_index):
+        return FileResponse(public_index)
+
+    # Fall back to root `index.html` for legacy/development setups.
     if os.path.exists("index.html"):
         return FileResponse("index.html")
+
     raise HTTPException(status_code=404, detail="index.html not found")
 
 

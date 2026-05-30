@@ -1,298 +1,40 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AETHER PROTOCOL — Алхимический Терминал</title>
-<meta name="description" content="AETHER PROTOCOL — геймифицированный планировщик задач. Выполняй миссии, прокачивай героев, побеждай боссов. Продуктивность нового уровня.">
-<meta name="keywords" content="продуктивность, геймификация, планировщик, RPG, задачи, миссии">
-<meta property="og:title" content="AETHER PROTOCOL — Алхимический Терминал">
-<meta property="og:description" content="Геймифицированный трекер задач. Выполняй миссии — получай XP. Уровень AAA+">
-<link rel="stylesheet" href="styles.css">
-<script src="app.js" defer></script>
-</head>
-.tact-counter { border-color: var(--violet); color: var(--violet); }
-.tact-counter:hover:not(:disabled) { background: var(--violet); color: #fff; box-shadow: 0 0 14px var(--violet-glow); }
-.tact-rest    { border-color: var(--amber); color: var(--amber); }
-.tact-rest:hover:not(:disabled)    { background: var(--amber); color: #000; box-shadow: 0 0 14px var(--amber-glow); }
-
-/* Hide quick siphon block (legacy) and Live Telemetry terminal */
-.hrp-quick-siphon { display: none !important; }
-.au-live-term { display: none !important; }
-
-/* === HOME SCREEN — improved symmetry & glass borders ============ */
-.home-screen-grid {
-  grid-template-columns: minmax(360px, 0.85fr) 1.15fr !important;
-  gap: 22px !important;
-  align-items: stretch;
-}
-.home-screen-grid > .hero-showcase,
-.home-screen-grid > .home-right-panel {
-  border: 1px solid rgba(34, 160, 122, 0.18);
-  border-radius: 6px;
-  padding: 18px;
-  background:
-    linear-gradient(140deg, rgba(20, 30, 40, 0.55), rgba(8, 12, 18, 0.65)),
-    radial-gradient(circle at top right, rgba(99, 102, 241, 0.08), transparent 60%);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
-  position: relative;
-  overflow: hidden;
-}
-.home-screen-grid > .hero-showcase::before,
-.home-screen-grid > .home-right-panel::before {
-  content: '';
-  position: absolute; inset: 0;
-  pointer-events: none;
-  background: linear-gradient(120deg, transparent 40%, rgba(34,160,122,0.05) 50%, transparent 60%);
-  background-size: 220% 100%;
-  animation: home-shimmer 9s linear infinite;
-}
-@keyframes home-shimmer { 0% { background-position: 220% 0;} 100% {background-position: -120% 0;} }
-<!-- Core engine moved to public/app.js. Inline engine removed to avoid duplicate globals like RANK_CONFIG. -->
-  width: 18px; height: 18px;
-  border-radius: 3px;
-  font-size: 10px;
-  border: 1px solid currentColor;
-  position: relative;
-}
-.status-icon.burn { color: #ef4444; background: rgba(239,68,68,0.12); }
-.status-icon.poison { color: #84cc16; background: rgba(132,204,22,0.12); }
-.status-icon.stun { color: #f59e0b; background: rgba(245,158,11,0.12); animation: dr-pulse 0.8s infinite; }
-.status-icon.shield { color: #22d3ee; background: rgba(34,211,238,0.15); }
-.status-icon.boost { color: #a855f7; background: rgba(168,85,247,0.15); }
-.status-icon .stack { position: absolute; bottom: -2px; right: -2px; font-size: 7px; background: #000; color: #fff; padding: 0 2px; border-radius: 2px; }
-
-.ult-meter {
-  margin-top: 6px;
-  height: 8px;
-  border: 1px solid rgba(168,85,247,0.4);
-  border-radius: 2px;
-  background: rgba(0,0,0,0.4);
-  position: relative;
-  overflow: hidden;
-}
-.ult-meter-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #a855f7, #f59e0b);
-  background-size: 200% 100%;
-  animation: streak-shine 2s linear infinite;
-  transition: width 0.4s ease-out;
-}
-.ult-meter-label {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-tact); font-size: 8px; color: #fff;
-  text-shadow: 0 0 4px #000;
-  letter-spacing: 0.1em;
-}
-.ult-meter.ready { box-shadow: 0 0 14px rgba(245,158,11,0.6); animation: dr-pulse 1.2s infinite; }
-
-@keyframes crit-flash {
-  0% { background: transparent; }
-  20% { background: rgba(239,68,68,0.18); }
-  100% { background: transparent; }
-}
-.arena-battle.crit-flash::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  animation: crit-flash 0.45s ease-out;
-  border-radius: 4px;
-}
-
-/* === HERO SHOWCASE — extra glass refinements ====================== */
-.home-screen-grid > .hero-showcase {
-  display: flex; flex-direction: column; gap: 14px;
-}
-.home-screen-grid > .home-right-panel { padding: 14px !important; }
-.home-right-panel .hrp-block {
-  padding: 12px 14px;
-  transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s;
-}
-.home-right-panel .hrp-block:hover {
-  border-color: rgba(34,160,122,0.35);
-  box-shadow: 0 0 18px rgba(34,160,122,0.12);
-  transform: translateY(-1px);
-}
-.hrp-daily-rewards { background: linear-gradient(140deg, rgba(168,85,247,0.06), rgba(34,160,122,0.04)) !important; }
-
-/* Smooth hover for all panels & cards (microinteractions) */
-.panel, .matrix-panel, .hrp-block, .hero-showcase, .stat-card, .dock-btn, .btn,
-.dash-chip, .qa-btn, .tact-btn {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
-}
-
-/* Activity terminal mobile adjustments */
-@media (max-width: 900px) {
-  .activity-terminal { min-height: 180px; max-height: 280px; }
-  .quick-actions-bar { grid-template-columns: repeat(2, 1fr); }
-  .ob-pillars { grid-template-columns: 1fr; }
-  .ob-shell { max-width: 100%; }
-  .ob-body { padding: 16px; min-height: 260px; }
-  .ob-big-title { font-size: 18px; }
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html { font-size: 14px; scroll-behavior: smooth; }
-
-body {
-  background: var(--void);
-  color: var(--text-prime);
-  font-family: var(--font-intel);
-  min-height: 100vh;
-  overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-::-webkit-scrollbar { width: 3px; height: 3px; }
-::-webkit-scrollbar-track { background: var(--void); }
-::-webkit-scrollbar-thumb { background: var(--emerald-dim); border-radius: 2px; }
-
-/* ============================================================
-   BACKGROUND GRID SYSTEM
-   ============================================================ */
-#bg-grid {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background-image:
-    linear-gradient(rgba(16,185,129,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(16,185,129,0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-#bg-radial {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.06) 0%, transparent 70%),
-              radial-gradient(ellipse 50% 40% at 0% 100%, rgba(16,185,129,0.04) 0%, transparent 60%);
-}
-
-/* ============================================================
-   LAYOUT SHELL
-   ============================================================ */
-#app {
-  position: relative; z-index: 1;
-  min-height: 100vh;
-  padding-bottom: calc(var(--dock-h) + 24px);
-  transition: opacity var(--transition-slow), transform var(--transition-slow), filter var(--transition-slow);
-}
-body.auth-locked #app,
-body.auth-locked #cmd-dock { opacity: 0; filter: blur(8px); transform: scale(0.99); pointer-events: none; }
-
-/* ============================================================
-   COMMAND HEADER
-   ============================================================ */
-#cmd-header {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(3,3,3,0.85);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-bottom: var(--panel-border);
-  padding: 0 24px;
-  height: 56px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-
-.header-brand {
-  display: flex; align-items: center; gap: 12px;
-}
-
-.brand-sigil {
-  width: 32px; height: 32px;
-  border: 0.5px solid var(--emerald);
-  transform: rotate(45deg);
-  position: relative;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 12px rgba(16,185,129,0.3), inset 0 0 8px rgba(16,185,129,0.1);
-}
-
-.brand-sigil::before {
-  content: '';
-  position: absolute;
-  width: 12px; height: 12px;
-  background: var(--emerald);
-  transform: rotate(0deg);
-  opacity: 0.8;
-  animation: sigil-pulse 3s ease-in-out infinite;
-}
-
-@keyframes sigil-pulse {
-  0%, 100% { opacity: 0.8; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.7); }
-}
-
-.brand-text {
-  font-family: var(--font-tact);
-  font-size: 13px; font-weight: 700;
-  letter-spacing: 0.15em;
-  color: var(--emerald);
-  text-transform: uppercase;
-}
-
-.brand-sub {
-  font-family: var(--font-tact);
-  font-size: 9px; font-weight: 400;
-  letter-spacing: 0.2em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  display: block; margin-top: 1px;
-}
-
-.header-stats {
-  display: flex; align-items: center; gap: 20px;
-}
-
-.hstat {
-  display: flex; flex-direction: column; align-items: flex-end;
-}
-
-.hstat-label {
-  font-family: var(--font-tact);
-  font-size: 8px; letter-spacing: 0.15em;
-  color: var(--text-muted); text-transform: uppercase;
-}
-
-.hstat-val {
-  font-family: var(--font-tact);
-  font-size: 13px; font-weight: 600;
-}
-
-.hstat-val.emerald { color: var(--emerald); }
-.hstat-val.violet { color: var(--violet); }
-.hstat-val.crimson { color: var(--crimson); }
-.hstat-val.amber { color: var(--amber); }
-
-#auth-screen {
-  position: fixed; inset: 0; z-index: 3000;
-  display: none;
-  align-items: center; justify-content: center;
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.12) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 45% at 0% 100%, rgba(16,185,129,0.08) 0%, transparent 60%),
-    rgba(2,2,6,0.88);
-  backdrop-filter: blur(12px);
-}
-#auth-screen.visible { display: flex; }
-.auth-shell {
-  width: min(920px, 94vw);
-  border: var(--panel-border);
-  background: rgba(6,7,12,0.78);
-  backdrop-filter: var(--glass-blur);
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  position: relative;
-  overflow: hidden;
-}
-.auth-shell::before {
-  content: "";
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(16,185,129,0.07), transparent 50%, rgba(99,102,241,0.06));
-  pointer-events: none;
-}
-.auth-side { padding: 24px; border-right: 0.5px solid rgba(255,255,255,0.08); position: relative; }
-.auth-side .brand-sigil { margin-bottom: 14px; }
-.auth-title { font-family: var(--font-tact); font-size: 16px; letter-spacing: 0.2em; color: var(--emerald); }
-.auth-sub { color: var(--text-sec); margin-top: 10px; line-height: 1.5; font-size: 13px; }
-.auth-scan {
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Play2Study — Moved</title>
+    <meta http-equiv="refresh" content="0; url=/public/" />
+  </head>
+  <body>
+    <p>The main site has been moved to <a href="/public/">/public/</a>. If you need the original monolithic file it was backed up to <code>backup/index.html</code>.</p>
+  </body>
+</html>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Play2Study — Moved</title>
+    <meta http-equiv="refresh" content="0; url=/public/" />
+  </head>
+  <body>
+    <p>The main site has been moved to <a href="/public/">/public/</a>. If you need the original monolithic file it was backed up to <code>backup/index.html</code>.</p>
+  </body>
+</html>
+<!DOCTYPE html>
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Play2Study — Moved</title>
+    <meta http-equiv="refresh" content="0; url=/public/" />
+  </head>
+  <body>
+    <p>The main site has been moved to <a href="/public/">/public/</a>. If you need the original monolithic file it was backed up to <code>backup/index.html</code>.</p>
+  </body>
+</html>
   margin-top: 20px; border: 0.5px solid rgba(16,185,129,0.25); padding: 10px;
   font-family: var(--font-tact); font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em;
 }
@@ -8999,10 +8741,40 @@ function renderHeroVisual(heroId, containerEl, size = 'full') {
     if (!containerEl) return;
     const hero = HEROES[heroId] || HEROES.aether_wraith;
     const modeClass = size === 'battle' ? 'battle' : '';
-    const imageUrl = hero.imageUrl ? encodeURI(hero.imageUrl) : '';
-    const imageLayer = imageUrl ? `<div class="hero-image" style="background-image:url('${imageUrl}')"></div>` : '';
-    const extra = hero.id === 'infernal_sorcerer' ? '<div class="hero-orb"></div>' : hero.id === 'matrix_phantom' ? '<div class="hero-node-lines"></div>' : '<div class="hero-trails"></div>';
-    containerEl.innerHTML = `<div class="hero-visual ${modeClass} ${size === 'full' ? 'hero-enter' : ''}" style="--hero-color:${hero.color};--hero-glow:${hero.colorGlow};--hero-dim:${hero.colorDim}">${imageLayer}<div class="hero-body"></div><div class="hero-eye"></div>${extra}</div>`;
+
+    const isSafeAssetUrl = (u) => {
+      if (!u) return false;
+      if (typeof u !== 'string') return false;
+      if (u.includes('${')) return false;
+      return /^(https?:\/\/|data:|blob:|\/|\.\/|\.\.\/|assets\/)/i.test(u);
+    };
+
+    let imageUrl = hero.imageUrl ? String(hero.imageUrl).trim() : '';
+    if (!isSafeAssetUrl(imageUrl)) imageUrl = '';
+
+    containerEl.innerHTML = '';
+    const root = document.createElement('div');
+    root.className = `hero-visual ${modeClass} ${size === 'full' ? 'hero-enter' : ''}`;
+    root.style.setProperty('--hero-color', hero.color);
+    root.style.setProperty('--hero-glow', hero.colorGlow);
+    root.style.setProperty('--hero-dim', hero.colorDim);
+
+    if (imageUrl) {
+      const imgDiv = document.createElement('div');
+      imgDiv.className = 'hero-image';
+      try { imgDiv.style.backgroundImage = `url("${encodeURI(imageUrl)}")`; } catch (e) { imgDiv.style.backgroundImage = '' }
+      root.appendChild(imgDiv);
+    }
+
+    const body = document.createElement('div'); body.className = 'hero-body'; root.appendChild(body);
+    const eye = document.createElement('div'); eye.className = 'hero-eye'; root.appendChild(eye);
+    let extraEl;
+    if (hero.id === 'infernal_sorcerer') extraEl = document.createElement('div'), extraEl.className = 'hero-orb';
+    else if (hero.id === 'matrix_phantom') extraEl = document.createElement('div'), extraEl.className = 'hero-node-lines';
+    else extraEl = document.createElement('div'), extraEl.className = 'hero-trails';
+    root.appendChild(extraEl);
+
+    containerEl.appendChild(root);
   } catch (e) { console.warn('renderHeroVisual', e); }
 }
 
@@ -10495,11 +10267,26 @@ function mediaHubLoadVideo(force) {
     return;
   }
   const embed = _toEmbedURL(url);
+  // Safety check
+  const isSafeEmbed = (u) => {
+    if (!u || typeof u !== 'string') return false;
+    if (u.includes('${')) return false;
+    return /^(https?:\/\/|data:|blob:|\/|\.\/|\.\.\/|assets\/)/i.test(u);
+  };
+  if (!isSafeEmbed(embed)) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Неверный URL: проверьте ссылку.', 'warning'); return; }
   const isMp4 = /\.mp4(\?|$)/i.test(embed);
   frame.classList.remove('empty');
-  frame.innerHTML = isMp4
-    ? `<video src="${embed}" controls style="width:100%;height:100%;background:#000"></video>`
-    : `<iframe src="${embed}" style="width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  while (frame.firstChild) frame.removeChild(frame.firstChild);
+  if (isMp4) {
+    const video = document.createElement('video'); video.controls = true; video.style.width = '100%'; video.style.height = '100%'; video.style.background = '#000';
+    try { video.src = embed; } catch (e) { console.warn('video.src assign', e); }
+    frame.appendChild(video);
+  } else {
+    const iframe = document.createElement('iframe'); iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.border = '0';
+    iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture'); iframe.setAttribute('allowfullscreen', '');
+    try { iframe.src = embed; } catch (e) { console.warn('iframe.src assign', e); }
+    frame.appendChild(iframe);
+  }
   frame.dataset.loadedUrl = url;
   const m = document.getElementById('siphon-modal'); if (m) m.classList.add('media-loaded');
   const s = _siphonMediaState(); if (s) { s.videoUrl = url; if (typeof saveState === 'function') saveState(); }
@@ -10523,8 +10310,13 @@ function mediaHubLoadDoc() {
   if (!inp || !frame) return;
   const url = (inp.value || '').trim();
   if (!url) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Укажи URL документа (PDF / страница).', 'warning'); return; }
+  if (url.includes('${')) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Неверный URL документа.', 'warning'); return; }
+  if (!/^(https?:\/\/|\/|\.\/|\.\.\/|assets\/)/i.test(url)) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Неверный URL документа.', 'warning'); return; }
   frame.classList.remove('empty');
-  frame.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
+  while (frame.firstChild) frame.removeChild(frame.firstChild);
+  const iframe = document.createElement('iframe'); iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.border = '0'; iframe.style.background = '#fff';
+  try { iframe.src = url; } catch (e) { console.warn('doc iframe src assign', e); }
+  frame.appendChild(iframe);
   const s = _siphonMediaState(); if (s) { s.docUrl = url; if (typeof saveState === 'function') saveState(); }
 }
 let _mhNotesTimer = null;
@@ -11137,13 +10929,12 @@ window.ARENA_DMG_REDUCTION = 0.55; // multiply all dmg
     });
   });
   obs.observe(document.body, { childList: true, subtree: true });
-})();
+})(); 
 
 // Boot sequence
 document.addEventListener('DOMContentLoaded', init);
 </script>
-
-<!-- Siphon PIP — minimized focus widget -->
+<!-- Core engine moved to `public/app.js`. Keep a single canonical declaration of global constants there. -->
 <div class="siphon-pip" id="siphon-pip" onclick="siphonRestore()">
   <div class="siphon-pip-label">⌬ FOCUS LOCK · АКТИВЕН</div>
   <div class="siphon-pip-time" id="pip-time">25:00</div>

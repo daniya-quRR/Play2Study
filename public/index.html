@@ -11,11 +11,25 @@
 <link rel="stylesheet" href="styles.css">
 <script src="firebase-config.js"></script>
 <script src="app.js" defer></script>
+    <link rel="stylesheet" href="styles.css">
+    <script src="firebase-config.js"></script>
+<link rel="stylesheet" href="styles.css">
+<script src="firebase-config.js"></script>
+<script src="app.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div id="app">Loading…</div>
+    <noscript>
+      JavaScript is required to run this application.
+    </noscript>
+  </body>
+</html>
 <style>
 .tact-counter { border-color: var(--violet); color: var(--violet); }
 .tact-counter:hover:not(:disabled) { background: var(--violet); color: #fff; box-shadow: 0 0 14px var(--violet-glow); }
-.tact-rest    { border-color: var(--amber); color: var(--amber); }
-.tact-rest:hover:not(:disabled)    { background: var(--amber); color: #000; box-shadow: 0 0 14px var(--amber-glow); }
+    <title>AETHER PROTOCOL</title>
+    <meta name="description" content="AETHER PROTOCOL — minimal hosting index (externalized assets)." />
 
 /* Hide quick siphon block (legacy) and Live Telemetry terminal */
 .hrp-quick-siphon { display: none !important; }
@@ -26,7 +40,7 @@
   grid-template-columns: minmax(360px, 0.85fr) 1.15fr !important;
   gap: 22px !important;
   align-items: stretch;
-}
+  </html>
 .home-screen-grid > .hero-showcase,
 .home-screen-grid > .home-right-panel {
   border: 1px solid rgba(34, 160, 122, 0.18);
@@ -8991,10 +9005,44 @@ function renderHeroVisual(heroId, containerEl, size = 'full') {
     if (!containerEl) return;
     const hero = HEROES[heroId] || HEROES.aether_wraith;
     const modeClass = size === 'battle' ? 'battle' : '';
-    const imageUrl = hero.imageUrl ? encodeURI(hero.imageUrl) : '';
-    const imageLayer = imageUrl ? `<div class="hero-image" style="background-image:url('${imageUrl}')"></div>` : '';
-    const extra = hero.id === 'infernal_sorcerer' ? '<div class="hero-orb"></div>' : hero.id === 'matrix_phantom' ? '<div class="hero-node-lines"></div>' : '<div class="hero-trails"></div>';
-    containerEl.innerHTML = `<div class="hero-visual ${modeClass} ${size === 'full' ? 'hero-enter' : ''}" style="--hero-color:${hero.color};--hero-glow:${hero.colorGlow};--hero-dim:${hero.colorDim}">${imageLayer}<div class="hero-body"></div><div class="hero-eye"></div>${extra}</div>`;
+
+    // Small helper: treat suspicious values (template placeholders, empty strings) as missing.
+    const isSafeAssetUrl = (u) => {
+      if (!u) return false;
+      if (typeof u !== 'string') return false;
+      if (u.includes('${')) return false; // obvious placeholder from bad data
+      // allow http(s), data:, blob:, absolute/relative paths and assets/ prefix
+      return /^(https?:\/\/|data:|blob:|\/|\.\/|\.\.\/|assets\/)/i.test(u);
+    };
+
+    let imageUrl = hero.imageUrl ? String(hero.imageUrl).trim() : '';
+    if (!isSafeAssetUrl(imageUrl)) imageUrl = '';
+
+    // Build DOM nodes instead of using raw innerHTML to avoid injecting untrusted strings
+    containerEl.innerHTML = '';
+    const root = document.createElement('div');
+    root.className = `hero-visual ${modeClass} ${size === 'full' ? 'hero-enter' : ''}`;
+    root.style.setProperty('--hero-color', hero.color);
+    root.style.setProperty('--hero-glow', hero.colorGlow);
+    root.style.setProperty('--hero-dim', hero.colorDim);
+
+    if (imageUrl) {
+      const imgDiv = document.createElement('div'); 
+      imgDiv.className = 'hero-image';
+      // use style.backgroundImage via DOM API which will properly encode values
+      try { imgDiv.style.backgroundImage = `url("${encodeURI(imageUrl)}")`; } catch (e) { imgDiv.style.backgroundImage = '' }
+      root.appendChild(imgDiv);
+    }
+
+    const body = document.createElement('div'); body.className = 'hero-body'; root.appendChild(body);
+    const eye = document.createElement('div'); eye.className = 'hero-eye'; root.appendChild(eye);
+    let extraEl;
+    if (hero.id === 'infernal_sorcerer') extraEl = document.createElement('div'), extraEl.className = 'hero-orb';
+    else if (hero.id === 'matrix_phantom') extraEl = document.createElement('div'), extraEl.className = 'hero-node-lines';
+    else extraEl = document.createElement('div'), extraEl.className = 'hero-trails';
+    root.appendChild(extraEl);
+
+    containerEl.appendChild(root);
   } catch (e) { console.warn('renderHeroVisual', e); }
 }
 
@@ -10487,11 +10535,32 @@ function mediaHubLoadVideo(force) {
     return;
   }
   const embed = _toEmbedURL(url);
+  // Safety check: avoid obvious template placeholders and require reasonable protocols
+  const isSafeEmbed = (u) => {
+    if (!u || typeof u !== 'string') return false;
+    if (u.includes('${')) return false;
+    return /^(https?:\/\/|data:|blob:|\/|\.\/|\.\.\/|assets\/)/i.test(u);
+  };
+  if (!isSafeEmbed(embed)) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Неверный URL: проверьте ссылку.', 'warning'); return; }
   const isMp4 = /\.mp4(\?|$)/i.test(embed);
   frame.classList.remove('empty');
-  frame.innerHTML = isMp4
-    ? `<video src="${embed}" controls style="width:100%;height:100%;background:#000"></video>`
-    : `<iframe src="${embed}" style="width:100%;height:100%;border:0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+  // Remove previous children safely
+  while (frame.firstChild) frame.removeChild(frame.firstChild);
+  if (isMp4) {
+    const video = document.createElement('video');
+    video.controls = true;
+    video.style.width = '100%'; video.style.height = '100%'; video.style.background = '#000';
+    // assign src as property to avoid parsing of template placeholders
+    try { video.src = embed; } catch (e) { console.warn('video.src assign', e); }
+    frame.appendChild(video);
+  } else {
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.border = '0';
+    iframe.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+    iframe.setAttribute('allowfullscreen', '');
+    try { iframe.src = embed; } catch (e) { console.warn('iframe.src assign', e); }
+    frame.appendChild(iframe);
+  }
   frame.dataset.loadedUrl = url;
   const m = document.getElementById('siphon-modal'); if (m) m.classList.add('media-loaded');
   const s = _siphonMediaState(); if (s) { s.videoUrl = url; if (typeof saveState === 'function') saveState(); }
@@ -10515,8 +10584,15 @@ function mediaHubLoadDoc() {
   if (!inp || !frame) return;
   const url = (inp.value || '').trim();
   if (!url) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Укажи URL документа (PDF / страница).', 'warning'); return; }
+  // Validate URL
+  if (url.includes('${')) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Неверный URL документа.', 'warning'); return; }
+  if (!/^(https?:\/\/|\/|\.\/|\.\.\/|assets\/)/i.test(url)) { if (typeof toast === 'function') toast('МЕДИА-ХАБ', 'Неверный URL документа.', 'warning'); return; }
   frame.classList.remove('empty');
-  frame.innerHTML = `<iframe src="${url}" style="width:100%;height:100%;border:0;background:#fff"></iframe>`;
+  while (frame.firstChild) frame.removeChild(frame.firstChild);
+  const iframe = document.createElement('iframe');
+  iframe.style.width = '100%'; iframe.style.height = '100%'; iframe.style.border = '0'; iframe.style.background = '#fff';
+  try { iframe.src = url; } catch (e) { console.warn('doc iframe src assign', e); }
+  frame.appendChild(iframe);
   const s = _siphonMediaState(); if (s) { s.docUrl = url; if (typeof saveState === 'function') saveState(); }
 }
 let _mhNotesTimer = null;
