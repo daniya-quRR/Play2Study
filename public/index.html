@@ -9,8 +9,9 @@
 <meta property="og:title" content="AETHER PROTOCOL — Алхимический Терминал">
 <meta property="og:description" content="Геймифицированный трекер задач. Выполняй миссии — получай XP. Уровень AAA+">
 <link rel="stylesheet" href="styles.css">
+<script src="firebase-config.js"></script>
 <script src="app.js" defer></script>
-</head>
+<style>
 .tact-counter { border-color: var(--violet); color: var(--violet); }
 .tact-counter:hover:not(:disabled) { background: var(--violet); color: #fff; box-shadow: 0 0 14px var(--violet-glow); }
 .tact-rest    { border-color: var(--amber); color: var(--amber); }
@@ -50,7 +51,6 @@
   animation: home-shimmer 9s linear infinite;
 }
 @keyframes home-shimmer { 0% { background-position: 220% 0;} 100% {background-position: -120% 0;} }
-.home-right-panel { padding: 0 !important; }
 .home-right-panel .hrp-block {
   border: 1px solid rgba(34, 160, 122, 0.16);
   border-radius: 5px;
@@ -6367,16 +6367,7 @@ async function initFirebaseAuth() {
   try {
     const appMod = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js');
     const authMod = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js');
-    const firebaseConfig = {
-      apiKey: 'AIzaSyCmcfcLqvVCG5rWbzvFf7Oblc8ipmBlVWQ',
-      authDomain: 'aetherprotocol-310c0.firebaseapp.com',
-      projectId: 'aetherprotocol-310c0',
-      storageBucket: 'aetherprotocol-310c0.firebasestorage.app',
-      messagingSenderId: '635629853210',
-      appId: '1:635629853210:web:be471118edd7b56f884fa3',
-      measurementId: 'G-0JBF2FJT7K'
-    };
-    const app = appMod.initializeApp(firebaseConfig);
+    const app = appMod.initializeApp(window.FIREBASE_CONFIG || {});
     firebaseAuth = authMod.getAuth(app);
     firebaseProviders.google = new authMod.GoogleAuthProvider();
     authReady = true;
