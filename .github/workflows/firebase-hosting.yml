@@ -27,6 +27,6 @@ jobs:
         run: |
           if [ -z "$FIREBASE_TOKEN" ] || [ -z "$FIREBASE_PROJECT" ]; then
             echo "Missing FIREBASE_TOKEN or FIREBASE_PROJECT secret. Set them in repository Secrets.";
-            exit 1;
+            exit 1; 
           fi
           firebase deploy --only hosting --project "$FIREBASE_PROJECT" --token "$FIREBASE_TOKEN"
