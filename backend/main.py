@@ -154,7 +154,8 @@ async def auth(data: AuthRequest, background_tasks: BackgroundTasks, db: Session
         ])
         db.commit()
 
-        background_tasks.add_task(send_email_async, data.email, "Код подтверждения Play2Study", f"Твой код: {code}")
+        from backend.tasks import send_verification_email 
+        send_verification_email.delay(data.email, code)
         return {"status": "needs_verification", "email": data.email}
     else:
         user = db.query(User).filter(User.username == data.username).first()
@@ -206,7 +207,13 @@ def get_stats(user: User = Depends(get_current_user), db: Session = Depends(get_
         "streak_days": s.streak_days, "completed_tasks": s.completed_tasks, 
         "next_level_points": req, "current_level_progress": cur, "rank": rank
     }
-
+# --- HEALTH CHECK ---
+@app.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "database": "connected"
+    }
 @app.get("/tasks")
 def get_tasks(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     tasks = db.query(Task).filter(Task.user_id == user.id).all()

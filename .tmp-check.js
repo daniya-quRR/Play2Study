@@ -1629,7 +1629,7 @@ function renderArenaSelection() {
   const active = getActiveCompanion();
   if (portrait && active) portrait.style.backgroundPosition = getPortraitPositionByCompanionId(active.id);
   if (nameEl && active) nameEl.textContent = active.name;
-  wrap.innerHTML = owned.map(c => `<div class="arena-team-pick ${active && active.id===c.id ? 'active':''}" onclick="setActiveCompanion('${c.id}');renderArenaSelection()"><div style="height:80px;background-image:url('assets/companions-sheet.png');background-size:800px 500px;background-position:${getPortraitPositionByCompanionId(c.id)}"></div><div style="margin-top:6px;font-family:var(--font-tact);font-size:10px">${c.name}</div></div>`).join('');
+  wrap.innerHTML = owned.map(c => `<div class="arena-team-pick ${active && active.id===c.id ? 'active':''}" onclick="setActiveCompanion('${c.id}');renderArenaSelection()"><div style="height:80px;background-image:url('./assets/companions-sheet.png');background-size:800px 500px;background-position:${getPortraitPositionByCompanionId(c.id)}"></div><div style="margin-top:6px;font-family:var(--font-tact);font-size:10px">${c.name}</div></div>`).join('');
 }
 
 function triggerAbilityAnimation(kind) {
@@ -1664,7 +1664,7 @@ function renderArenaCombatants() {
   document.getElementById('arena-field').innerHTML = `
     <div class="combatant player">
       <div class="combatant-name">${escHtml(GS.player.name)} ${activeComp ? '— ' + escHtml(activeComp.name) : ''}</div>
-      <div class="arena-hero-portrait" style="background-image:url('assets/companions-sheet.png');background-position:${portraitPos}"></div>
+  <div class="arena-hero-portrait" style="background-image:url('./assets/companions-sheet.png');background-position:${portraitPos}"></div>
       <div>${eqArts.map(a => `<span class='arena-art-chip'>${escHtml(a.name)}</span>`).join('')}</div>
       <div class="combatant-hp-bar">
         <div class="combatant-hp-fill player" id="player-hp-fill" style="width:${(arena.playerHp/arena.playerMaxHp)*100}%"></div>
@@ -1700,7 +1700,7 @@ function renderArenaCompanions() {
   return getOwnedCompanionDefs().map(comp => {
     const shortName = comp.name.split(' ')[0].slice(0, 4);
     const portraitPos = comp.id === 'chronocatcher' ? '0px 0px' : comp.id === 'etherwatcher' ? '-200px 0px' : comp.id === 'plasmareaper' ? '-400px 0px' : comp.id === 'shadowarchitect' ? '-600px 0px' : comp.id === 'voidoracle' ? '0px -250px' : comp.id === 'crystalwarden' ? '-200px -250px' : '-400px -250px';
-    return `<div class="companion-token" id="arena-comp-${comp.id}" data-short="${escHtml(shortName)}" style="background-image:url('assets/companions-sheet.png');background-size:800px 500px;background-position:${portraitPos};background-color:rgba(3,6,12,0.7);font-size:0"></div>`;
+  return `<div class="companion-token" id="arena-comp-${comp.id}" data-short="${escHtml(shortName)}" style="background-image:url('./assets/companions-sheet.png');background-size:800px 500px;background-position:${portraitPos};background-color:rgba(3,6,12,0.7);font-size:0"></div>`;
   }).join('');
 }
 
@@ -2337,7 +2337,7 @@ function renderArmory() {
     return `
       <div class="companion-card ${comp.rarity}${owned ? ' owned' : ''}">
         <span class="companion-rarity">${rarityLabel}</span>
-        <div class="companion-portrait" style="background-image:url('assets/companions-sheet.png');background-size:800px 500px;background-position:${comp.id==='chronocatcher'?'0px 0px':comp.id==='etherwatcher'?'-200px 0px':comp.id==='plasmareaper'?'-400px 0px':comp.id==='shadowarchitect'?'-600px 0px':comp.id==='voidoracle'?'0px -250px':comp.id==='crystalwarden'?'-200px -250px':'-400px -250px'};">${comp.portrait}</div>
+  <div class="companion-portrait" style="background-image:url('./assets/companions-sheet.png');background-size:800px 500px;background-position:${comp.id==='chronocatcher'?'0px 0px':comp.id==='etherwatcher'?'-200px 0px':comp.id==='plasmareaper'?'-400px 0px':comp.id==='shadowarchitect'?'-600px 0px':comp.id==='voidoracle'?'0px -250px':comp.id==='crystalwarden'?'-200px -250px':'-400px -250px'};">${comp.portrait}</div>
         <div class="companion-name">${comp.name}</div>
         <div class="companion-title">${comp.title}</div>
         <div class="companion-lore">${comp.lore}</div>

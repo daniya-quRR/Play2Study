@@ -20,6 +20,29 @@ jobs:
       - name: Install firebase-tools
         run: npm install -g firebase-tools
 
+      - name: Write firebase-config.js from secrets (optional)
+        run: |
+          # If FIREBASE_CONFIG_JSON is provided, write it directly. Otherwise, assemble from individual secrets.
+          if [ -n "${{ secrets.FIREBASE_CONFIG_JSON }}" ]; then
+            echo "Writing public/firebase-config.js from FIREBASE_CONFIG_JSON secret"
+            echo "window.FIREBASE_CONFIG = ${{ secrets.FIREBASE_CONFIG_JSON }};" > public/firebase-config.js
+          elif [ -n "${{ secrets.FIREBASE_API_KEY }}" ]; then
+            echo "Writing public/firebase-config.js from individual FIREBASE_* secrets"
+            cat > public/firebase-config.js <<'EOF'
+window.FIREBASE_CONFIG = {
+  apiKey: '${{ secrets.FIREBASE_API_KEY }}',
+  authDomain: '${{ secrets.FIREBASE_AUTH_DOMAIN }}',
+  projectId: '${{ secrets.FIREBASE_PROJECT_ID }}',
+  storageBucket: '${{ secrets.FIREBASE_STORAGE_BUCKET }}',
+  messagingSenderId: '${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}',
+  appId: '${{ secrets.FIREBASE_APP_ID }}',
+  measurementId: '${{ secrets.FIREBASE_MEASUREMENT_ID }}'
+};
+EOF
+          else
+            echo "No firebase config secrets detected; skipping creating public/firebase-config.js"
+          fi
+
       - name: Deploy to Firebase Hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
