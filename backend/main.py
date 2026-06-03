@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr,SecretStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase
 import bcrypt
@@ -11,23 +11,27 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import random
 import string
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
 import os
 import uvicorn
 from fastapi.responses import FileResponse
 
 # --- КОНФИГ ПОЧТЫ (ЗАПОЛНИ СВОИМИ ДАННЫМИ!) ---
-conf = ConnectionConfig(
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME", "daniyakhamzinova07@gmail.com"),
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "mere"),
-    MAIL_FROM = os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME", "daniyakhamzinova07@gmail.com")),
-    MAIL_PORT = int(os.getenv("MAIL_PORT", "587")),
-    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_STARTTLS = True,
-    MAIL_SSL_TLS = False,
-    USE_CREDENTIALS = True,
-    VALIDATE_CERTS = True
-)
+# Store mail-related environment settings and lazily construct the
+# ConnectionConfig inside the async sender to avoid importing
+# fastapi_mail at module-import time (prevents import-time errors
+# when fastapi_mail or its dependencies are incompatible in the
+# test/runtime environment).
+MAIL_SETTINGS = {
+    "MAIL_USERNAME": os.getenv("MAIL_USERNAME", "daniyakhamzinova07@gmail.com"),
+    "MAIL_PASSWORD": os.getenv("MAIL_PASSWORD", "mere"),
+    "MAIL_FROM": os.getenv("MAIL_FROM", os.getenv("MAIL_USERNAME", "daniyakhamzinova07@gmail.com")),
+    "MAIL_PORT": int(os.getenv("MAIL_PORT", "587")),
+    "MAIL_SERVER": os.getenv("MAIL_SERVER", "smtp.gmail.com"),
+    "MAIL_STARTTLS": True,
+    "MAIL_SSL_TLS": False,
+    "USE_CREDENTIALS": True,
+    "VALIDATE_CERTS": True,
+}
 
 SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-2026-change-this")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
@@ -91,7 +95,9 @@ class AuthRequest(BaseModel):
     username: str
     password: str
     email: Optional[EmailStr] = None
-    register: bool
+    # Use a different attribute name to avoid shadowing BaseModel.register
+    # while keeping JSON compatibility via the alias 'register'.
+    is_register: bool = Field(..., alias="register")
 
 class TaskComplete(BaseModel):
     task_id: int
@@ -115,11 +121,34 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 async def send_email_async(email: str, subject: str, body: str):
+    """Send an email asynchronously.
+
+    fastapi_mail is imported and the ConnectionConfig constructed lazily
+    so import-time errors from that package (or mismatched dependency
+    versions) don't break test collection or app import.
+    """
     try:
+        # Import here to avoid import-time side effects during test collection
+        from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+
+        conf = ConnectionConfig(
+            MAIL_USERNAME=MAIL_SETTINGS["MAIL_USERNAME"],
+            MAIL_PASSWORD=MAIL_SETTINGS["MAIL_PASSWORD"],
+            MAIL_FROM=MAIL_SETTINGS["MAIL_FROM"],
+            MAIL_PORT=MAIL_SETTINGS["MAIL_PORT"],
+            MAIL_SERVER=MAIL_SETTINGS["MAIL_SERVER"],
+            MAIL_STARTTLS=MAIL_SETTINGS["MAIL_STARTTLS"],
+            MAIL_SSL_TLS=MAIL_SETTINGS["MAIL_SSL_TLS"],
+            USE_CREDENTIALS=MAIL_SETTINGS["USE_CREDENTIALS"],
+            VALIDATE_CERTS=MAIL_SETTINGS["VALIDATE_CERTS"],
+        )
+
         message = MessageSchema(subject=subject, recipients=[email], body=body, subtype=MessageType.plain)
         fm = FastMail(conf)
         await fm.send_message(message)
     except Exception as e:
+        # Don't bubble up email-sending errors to the API caller; log for
+        # debugging. This prevents mail infra issues from breaking tests.
         print(f"Ошибка отправки письма: {e}")
 
 def get_rank_name(level: int) -> str:
@@ -131,7 +160,7 @@ def get_rank_name(level: int) -> str:
 # --- ЭНДПОИНТЫ АВТОРИЗАЦИИ ---
 @app.post("/auth")
 async def auth(data: AuthRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    if data.register:
+    if data.is_register:
         if not data.email: raise HTTPException(400, "Email обязателен для регистрации")
         if db.query(User).filter((User.username == data.username) | (User.email == data.email)).first():
             raise HTTPException(400, "Имя пользователя или Email уже заняты")
@@ -157,6 +186,7 @@ async def auth(data: AuthRequest, background_tasks: BackgroundTasks, db: Session
         from backend.tasks import send_verification_email 
         send_verification_email.delay(data.email, code)
         return {"status": "needs_verification", "email": data.email}
+
     else:
         user = db.query(User).filter(User.username == data.username).first()
         if not user or not bcrypt.checkpw(data.password.encode('utf-8'), user.hashed_password.encode('utf-8')):

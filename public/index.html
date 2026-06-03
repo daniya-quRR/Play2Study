@@ -1503,7 +1503,6 @@ body.presentation-mode .panel, body.presentation-mode .companion-card, body.pres
 .arena-cinematic-shell { border:0.5px solid rgba(239,68,68,0.25); background: linear-gradient(180deg, rgba(5,7,12,0.85), rgba(2,3,8,0.95)); padding: 12px; }
 .arena-prep-grid { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 .arena-fighter-card { border:0.5px solid rgba(99,102,241,0.28); padding:10px; background: rgba(8,10,18,0.78); }
-.arena-fighter-portrait { height: 180px; border:0.5px solid rgba(255,255,255,0.07); background-image:url('./assets/companions-sheet.png'); background-size:800px 500px; background-repeat:no-repeat; margin-bottom: 8px; }
 .arena-team-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(180px,1fr)); gap:8px; }
 .arena-team-pick { border:0.5px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.02); padding:8px; cursor:pointer; }
 .arena-team-pick.active { border-color: rgba(16,185,129,0.45); box-shadow: 0 0 16px rgba(16,185,129,0.2); }
@@ -7205,7 +7204,6 @@ function renderArenaSelection() {
   const active = getActiveCompanion();
   if (portrait && active) portrait.style.backgroundPosition = getPortraitPositionByCompanionId(active.id);
   if (nameEl && active) nameEl.textContent = active.name;
-  wrap.innerHTML = owned.map(c => `<div class="arena-team-pick ${active && active.id===c.id ? 'active':''}" onclick="setActiveCompanion('${c.id}');renderArenaSelection()"><div style="height:80px;background-image:url('./assets/companions-sheet.png');background-size:800px 500px;background-position:${getPortraitPositionByCompanionId(c.id)}"></div><div style="margin-top:6px;font-family:var(--font-tact);font-size:10px">${c.name}</div></div>`).join('');
 }
 
 function triggerAbilityAnimation(kind) {
@@ -7240,7 +7238,6 @@ function renderArenaCombatants() {
   document.getElementById('arena-field').innerHTML = `
     <div class="combatant player">
       <div class="combatant-name">${escHtml(GS.player.name)} ${activeComp ? '— ' + escHtml(activeComp.name) : ''}</div>
-  <div class="arena-hero-portrait" style="background-image:url('./assets/companions-sheet.png');background-position:${portraitPos}"></div>
       <div>${eqArts.map(a => `<span class='arena-art-chip'>${escHtml(a.name)}</span>`).join('')}</div>
       <div class="combatant-hp-bar">
         <div class="combatant-hp-fill player" id="player-hp-fill" style="width:${(arena.playerHp/arena.playerMaxHp)*100}%"></div>
@@ -7276,7 +7273,6 @@ function renderArenaCompanions() {
   return getOwnedCompanionDefs().map(comp => {
     const shortName = comp.name.split(' ')[0].slice(0, 4);
     const portraitPos = comp.id === 'chronocatcher' ? '0px 0px' : comp.id === 'etherwatcher' ? '-200px 0px' : comp.id === 'plasmareaper' ? '-400px 0px' : comp.id === 'shadowarchitect' ? '-600px 0px' : comp.id === 'voidoracle' ? '0px -250px' : comp.id === 'crystalwarden' ? '-200px -250px' : '-400px -250px';
-  return `<div class="companion-token" id="arena-comp-${comp.id}" data-short="${escHtml(shortName)}" style="background-image:url('./assets/companions-sheet.png');background-size:800px 500px;background-position:${portraitPos};background-color:rgba(3,6,12,0.7);font-size:0"></div>`;
   }).join('');
 }
 
@@ -7995,7 +7991,6 @@ function renderArmory() {
     return `
       <div class="companion-card ${comp.rarity}${owned ? ' owned' : ''}">
         <span class="companion-rarity">${rarityLabel}</span>
-  <div class="companion-portrait" style="background-image:url('./assets/companions-sheet.png');background-size:800px 500px;background-position:${comp.id==='chronocatcher'?'0px 0px':comp.id==='etherwatcher'?'-200px 0px':comp.id==='plasmareaper'?'-400px 0px':comp.id==='shadowarchitect'?'-600px 0px':comp.id==='voidoracle'?'0px -250px':comp.id==='crystalwarden'?'-200px -250px':'-400px -250px'};">${comp.portrait}</div>
         <div class="companion-name">${comp.name}</div>
         <div class="companion-title">${comp.title}</div>
         <div class="companion-lore">${comp.lore}</div>
