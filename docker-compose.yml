@@ -1,10 +1,38 @@
+version: '3.8'
+
 services:
-  app:
-    build: .
+  postgres:
+    image: postgres:16
+    container_name: postgres_container
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb
     ports:
-      - "5001:10000"
-    restart: unless-stopped
+      - "5433:5432"
     volumes:
-      - .:/app
-    # environment:
-    #   - DATABASE_URL=sqlite:///play2study.db
+      - pg_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: backend_container
+    restart: always
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+    env_file:
+      - ./backend/.env
+
+  frontend:
+    build: ./frontend
+    container_name: frontend_container
+    restart: always
+    ports:
+      - "3000:80" 
+    depends_on:
+      - backend
+
+volumes:
+  pg_data:
