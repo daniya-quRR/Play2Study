@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Пользователи</title>
+  <style>
+    body { margin: 0; min-height: 100vh; font-family: Inter, system-ui, sans-serif; background: #071018; color: #e7eef7; }
+    .page { max-width: 980px; margin: 0 auto; padding: 32px; }
+    h1 { margin: 0 0 12px; font-size: 2rem; color: #7eedb9; }
+    p { margin: 0 0 20px; color: #a9b8c8; line-height: 1.6; }
+    .card { background: rgba(7, 16, 24, 0.92); border: 1px solid rgba(126, 237, 185, 0.16); border-radius: 18px; padding: 24px; box-shadow: 0 28px 70px rgba(0, 0, 0, 0.25); margin-bottom: 24px; }
+    .field { display: grid; gap: 8px; margin-bottom: 16px; }
+    .field label { font-size: 0.95rem; color: #9db4c9; }
+    .field input { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(126,237,185,0.18); background: rgba(13, 24, 36, 0.95); color: #f3f8ff; font-size: 1rem; }
+    button { cursor: pointer; border: none; border-radius: 12px; background: linear-gradient(135deg, #22c55e, #0f766e); color: white; padding: 12px 18px; font-size: 1rem; transition: transform 0.16s ease, box-shadow 0.16s ease; }
+    button:hover { transform: translateY(-1px); box-shadow: 0 14px 24px rgba(34,197,94,0.28); }
+    button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+    .info { padding: 12px 14px; border-radius: 12px; margin-bottom: 16px; background: rgba(8, 13, 21, 0.85); border: 1px solid rgba(99, 102, 241, 0.16); color: #c0d5f1; }
+    .status { margin-bottom: 18px; min-height: 24px; font-size: 0.95rem; }
+    .status.error { color: #fca5a5; }
+    .status.success { color: #86efac; }
+    .status.info { color: #93c5fd; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; margin-top: 16px; }
+    th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.08); }
+    th { color: #7dd3fc; font-weight: 600; font-size: 0.95rem; }
+    td { color: #dde7f3; }
+    tr:hover td { background: rgba(255,255,255,0.04); }
+    .raw { margin-top: 20px; white-space: pre-wrap; word-break: break-word; background: rgba(255,255,255,0.04); border-radius: 12px; padding: 16px; color: #cbd5e1; font-size: 0.9rem; }
+    .top-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .top-row .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .link { color: #7dd3fc; text-decoration: none; }
+    .link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="top-row">
+      <div>
+        <h1>Admin: список пользователей</h1>
+        <p>Здесь можно быстро загрузить всех пользователей из backend и посмотреть их основные данные. Требуется админ-логин на сервере.</p>
+      </div>
+      <div class="actions">
+        <button id="load-users">Загрузить пользователей</button>
+        <button id="logout-btn">Выйти</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="status info" id="status-text">Проверка сохранённого токена...</div>
+      <div id="login-form">
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="admin@example.com" autocomplete="username">
+        </div>
+        <div class="field">
+          <label for="password">Пароль</label>
+          <input id="password" type="password" placeholder="Пароль" autocomplete="current-password">
+        </div>
+        <button id="login-btn">Войти как админ</button>
+      </div>
+      <div class="info">Если вы уже вошли в основное приложение и в localStorage сохранён токен администратора, он будет найден автоматически.</div>
+    </div>
+
+    <div class="card" id="users-card" hidden>
+      <h2>Пользователи</h2>
+      <div class="info">Список загружен из <code>/api/admin/users</code>. Можно обновить через кнопку «Загрузить пользователей».</div>
+      <div id="table-wrap"></div>
+      <div class="raw" id="raw-output" hidden></div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = '/api';
+    const STORAGE_KEY = 'aether_protocol_v2';
+    const ADMIN_TOKEN_KEY = 'aether_admin_token';
+    const statusEl = document.getElementById('status-text');
+    const loginForm = document.getElementById('login-form');
+    const usersCard = document.getElementById('users-card');
+    const tableWrap = document.getElementById('table-wrap');
+    const rawOutput = document.getElementById('raw-output');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginBtn = document.getElementById('login-btn');
+    const loadBtn = document.getElementById('load-users');
+    const logoutBtn = document.getElementById('logout-btn');
+
+    function getStoredToken() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const gs = JSON.parse(raw);
+          if (gs && gs.auth && gs.auth.token) return gs.auth.token;
+        }
+      } catch (e) {}
+      return localStorage.getItem(ADMIN_TOKEN_KEY) || null;
+    }
+
+    function saveAdminToken(token) {
+      try {
+        localStorage.setItem(ADMIN_TOKEN_KEY, token);
+      } catch (e) {}
+    }
+
+    function clearTokens() {
+      try { localStorage.removeItem(ADMIN_TOKEN_KEY); } catch (e) {}
+    }
+
+    function setStatus(message, type = 'info') {
+      statusEl.textContent = message;
+      statusEl.className = `status ${type}`;
+    }
+
+    function authHeaders(token) {
+      return {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      };
+    }
+
+    async function fetchUsers(token) {
+      setStatus('Загружаю список пользователей...', 'info');
+      usersCard.hidden = true;
+      rawOutput.hidden = true;
+      try {
+        const res = await fetch(`${API_BASE}/admin/users`, { headers: authHeaders(token) });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Ошибка загрузки пользователей');
+        }
+        renderUsers(data);
+        setStatus(`Найдено ${data.length} пользователей.`, 'success');
+      } catch (error) {
+        setStatus(error.message || 'Не удалось загрузить пользователей.', 'error');
+      }
+    }
+
+    function renderUsers(users) {
+      if (!Array.isArray(users)) users = [];
+      const head = `<table><thead><tr><th>ID</th><th>Имя</th><th>Email</th><th>Уровень</th><th>XP</th><th>Изумруды</th></tr></thead>`;
+      const rows = users.map(user => `
+        <tr>
+          <td>${user.id}</td>
+          <td>${user.username || ''}</td>
+          <td>${user.email || ''}</td>
+          <td>${user.level ?? ''}</td>
+          <td>${user.xp ?? ''}</td>
+          <td>${user.emeralds ?? ''}</td>
+        </tr>
+      `).join('');
+      tableWrap.innerHTML = `${head}<tbody>${rows}</tbody></table>`;
+      rawOutput.textContent = JSON.stringify(users, null, 2);
+      rawOutput.hidden = false;
+      usersCard.hidden = false;
+    }
+
+    async function loginAdmin() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        setStatus('Введите email и пароль.', 'error');
+        return;
+      }
+      setStatus('Выполняю вход...', 'info');
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: authHeaders(null),
+          body: JSON.stringify({ email, password })
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          throw new Error(body.error || 'Ошибка входа');
+        }
+        const token = body.token;
+        saveAdminToken(token);
+        setStatus('Вход выполнен. Загружаю пользователей...', 'success');
+        await fetchUsers(token);
+      } catch (error) {
+        setStatus(error.message || 'Не удалось войти.', 'error');
+      }
+    }
+
+    function initPage() {
+      const token = getStoredToken();
+      if (token) {
+        setStatus('Найден токен. Загружаю список пользователей...', 'info');
+        loginForm.style.display = 'none';
+        fetchUsers(token).catch(() => {
+          loginForm.style.display = 'block';
+          setStatus('Токен недействителен или нет прав. Войдите заново.', 'error');
+        });
+      } else {
+        setStatus('Токен не найден. Войдите как админ.', 'info');
+      }
+    }
+
+    loginBtn.addEventListener('click', loginAdmin);
+    loadBtn.addEventListener('click', async () => {
+      const token = getStoredToken();
+      if (!token) {
+        setStatus('Сначала войдите как админ.', 'error');
+        return;
+      }
+      await fetchUsers(token);
+    });
+    logoutBtn.addEventListener('click', () => {
+      clearTokens();
+      usersCard.hidden = true;
+      setStatus('Токен удалён. Войдите заново.', 'info');
+      loginForm.style.display = 'block';
+    });
+
+    initPage();
+  </script>
+</body>
+</html>

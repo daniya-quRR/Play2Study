@@ -7172,11 +7172,72 @@ const COMPANION_ARTIFACT_CATALOG = [
 const GUILD_DAILY_QUOTA = 5;
 const STORAGE_KEY = 'aether_protocol_v2';
 const USER_STORAGE_PREFIX = 'aether_protocol_uid_';
+const API_BASE = '/api';
 const FOCUS_PRESETS = {
   classic: { focus: 25, rest: 5 },
   deep: { focus: 50, rest: 10 },
   flow: { focus: 90, rest: 15 }
 };
+
+function getAuthHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    ...(GS.auth && GS.auth.token ? { Authorization: `Bearer ${GS.auth.token}` } : {})
+  };
+}
+
+async function backendLogin(email, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ email, password })
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Ошибка входа.');
+  }
+  const user = data.user || {};
+  GS.auth = GS.auth || {};
+  GS.auth.uid = user.id;
+  GS.auth.email = user.email;
+  GS.auth.token = data.token;
+  GS.auth.backend = true;
+  GS.player.name = user.username || GS.player.name;
+  loadUserScopedState(GS.auth.uid);
+  saveState();
+  updateHeader();
+  renderAll();
+  showAuthScreen(false);
+  if (typeof toast === 'function') toast('ВХОД УСПЕШЕН', `Добро пожаловать, ${user.username || user.email}!`, 'success', 3200);
+  return data;
+}
+
+async function backendRegister(username, email, password, confirmPassword) {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ username, email, password, confirmPassword })
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Ошибка регистрации.');
+  }
+  const user = data.user || {};
+  GS.auth = GS.auth || {};
+  GS.auth.uid = user.id;
+  GS.auth.email = user.email;
+  GS.auth.token = data.token;
+  GS.auth.backend = true;
+  GS.player.name = user.username || GS.player.name;
+  loadUserScopedState(GS.auth.uid);
+  saveState();
+  updateHeader();
+  renderAll();
+  showAuthScreen(false);
+  if (typeof toast === 'function') toast('АККАУНТ СОЗДАН', `Добро пожаловать, ${user.username || 'оператор'}!`, 'success', 4200);
+  return data;
+}
+
 const DISTILLATION_TYPES = {
   coding: { xp: 1.25, emeralds: 1.15, essence: 1.2 },
   reading: { xp: 1.05, emeralds: 1, essence: 1.05 },
@@ -7525,25 +7586,19 @@ async function submitAuth() {
     const password2 = (document.getElementById('auth-password-confirm') || {}).value || '';
     if (password !== password2) { setAuthError('Пароли не совпадают. Проверьте поле подтверждения.'); return; }
     if (password.length < 6) { setAuthError('Пароль слишком короткий — минимум 6 символов.'); return; }
-  }
-
-  if (!authReady) {
-    setAuthError('Firebase недоступен. Используйте ГОСТЕВОЙ АДМИН (OFFLINE).');
+    authInFlight = true;
+    setAuthError('');
+    initiateRegistration(email, password, nickTrim);
+    authInFlight = false;
     return;
   }
 
   try {
     authInFlight = true;
     setAuthError('');
-    const authMod = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js');
-    if (authMode === 'register') {
-      const nickTrim = document.getElementById('auth-nick').value.trim();
-      initiateRegistration(email, password, nickTrim);
-    } else {
-      await authMod.signInWithEmailAndPassword(firebaseAuth, email, password);
-    }
+    await backendLogin(email, password);
   } catch (e) {
-    setAuthError(humanizeAuthError(e));
+    setAuthError(e.message || humanizeAuthError(e));
   } finally {
     authInFlight = false;
   }
@@ -7599,31 +7654,16 @@ async function confirmPrivacyAndRegister() {
   closeModal('privacy-modal');
   try {
     authInFlight = true;
-    const authMod = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js');
-    const cred = await authMod.createUserWithEmailAndPassword(firebaseAuth, pending.email, pending.password);
-    // Persist nickname → Firebase profile + local game state
-    if (pending.nickname && cred && cred.user) {
-      try {
-        await authMod.updateProfile(cred.user, { displayName: pending.nickname });
-      } catch (upErr) { console.warn('[updateProfile]', upErr); }
-      try {
-        GS.player = GS.player || {};
-        GS.player.name = pending.nickname;
-        if (typeof saveState === 'function') saveState();
-      } catch (e) {}
-    }
-    // Send verification email (best-effort, non-blocking)
-    if (cred && cred.user) {
-      try { authMod.sendEmailVerification(cred.user); } catch (vErr) {}
-    }
+    setAuthError('');
+    await backendRegister(pending.nickname || pending.email, pending.email, pending.password, pending.password);
     pendingRegistration = null;
     try { localStorage.setItem('aether_just_registered', '1'); } catch (e) {}
-    if (typeof toast === 'function') toast('АККАУНТ СОЗДАН', 'Добро пожаловать, ' + (pending.nickname || 'оператор') + '! Письмо для верификации отправлено.', 'success', 4500);
+    if (typeof toast === 'function') toast('АККАУНТ СОЗДАН', 'Добро пожаловать, ' + (pending.nickname || 'оператор') + '!', 'success', 4500);
     setTimeout(function () {
       if (typeof openOnboarding === 'function') openOnboarding();
     }, 800);
   } catch (e) {
-    setAuthError(humanizeAuthError(e));
+    setAuthError(e.message || humanizeAuthError(e));
   } finally {
     authInFlight = false;
   }
@@ -7810,9 +7850,21 @@ async function signOutUser() {
     showAuthScreen(true);
     return;
   }
+
+  if (GS.auth && GS.auth.token) {
+    GS.auth = { uid: null, email: null, token: null };
+    saveState();
+    updateHeader();
+    showAuthScreen(true);
+  }
+
   if (!authReady || !firebaseAuth) return;
-  const authMod = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js');
-  await authMod.signOut(firebaseAuth);
+  try {
+    const authMod = await import('https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js');
+    await authMod.signOut(firebaseAuth);
+  } catch (e) {
+    console.warn('Firebase sign out failed:', e);
+  }
 }
 
 // ============================================================
@@ -11401,6 +11453,10 @@ function init() {
     if (!GS.activityLog.length) pushActivity('Система активирована', 'system');
     ensureAchievementState();
     hydrateEnergyRegen();
+    const hasBackendSession = GS.auth && GS.auth.token && GS.auth.uid && !GS.auth.offlineAdmin;
+    if (hasBackendSession) {
+      loadUserScopedState(GS.auth.uid);
+    }
     renderAll();
     navigateTo('home', 'fade');
     checkGuildDailyReset();
@@ -11433,7 +11489,13 @@ function init() {
     }, 15000);
 
     setAuthMode('login');
-    initFirebaseAuth();
+    if (GS.auth && GS.auth.token && GS.auth.uid && !GS.auth.offlineAdmin) {
+      updateHeader();
+      showAuthScreen(false);
+      if (typeof toast === 'function') toast('СЕССИЯ ВОССТАНОВЛЕНА', `Вы вошли как ${GS.auth.email}.`, 'info', 3200);
+    } else {
+      initFirebaseAuth();
+    }
     // Bind live password strength + match listeners on auth screen
     try {
       const pwIn = document.getElementById('auth-password');
@@ -13729,6 +13791,145 @@ document.addEventListener('DOMContentLoaded', init);
     annotateArenaKeys,
   };
 })();
+
+
+// НАСТРОЙКА ПОДКЛЮЧЕНИЯ К БЭКЕНДУ
+const API_URL = 'http://localhost:5000/api';
+
+// ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ СОСТОЯНИЯ ИГРОКА (синхронизируются с БД)
+let currentPlayer = {
+    id: null,
+    username: 'Путешественник',
+    level: 1,
+    xp: 0,
+    emeralds: 0,
+    health: 100,
+    willpower: 100
+};
+
+// 1. РЕГИСТРАЦИЯ
+async function registerUser(username, email, password) {
+    try {
+        const response = await fetch(`${API_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Ошибка регистрации');
+        
+        appendTerminalLine('system', `Протокол инициализирован. Юзер ${username} сохранен в базу.`);
+        alert('Регистрация успешна!');
+    } catch (error) {
+        appendTerminalLine('raid', `Критический сбой: ${error.message}`);
+        alert(error.message);
+    }
+}
+
+// 2. АВТОРИЗАЦИЯ (ЛОГИН)
+async function loginUser(email, password) {
+    try {
+        const response = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Неверные данные');
+
+        // Сохраняем сессию
+        localStorage.setItem('aether_token', data.token);
+        currentPlayer = data.user;
+
+        appendTerminalLine('success', `Доступ разрешен. Синхронизация с аккаунтом: ${data.user.username}`);
+        
+        updateFrontendUI(); // Обновляем полоски XP, здоровья и никнейм на экране
+        loadTasks();        // Загружаем список задач из БД
+    } catch (error) {
+        appendTerminalLine('raid', `Ошибка авторизации: ${error.message}`);
+        alert(error.message);
+    }
+}
+
+// 3. ПОЛУЧЕНИЕ ЗАДАЧ ИЗ БАЗЫ ДАННЫХ
+async function loadTasks() {
+    const token = localStorage.getItem('aether_token');
+    if (!token) return;
+
+    try {
+        appendTerminalLine('task', 'Запрос списка миссий из базы данных...');
+        const response = await fetch(`${API_URL}/tasks`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const tasks = await response.json();
+        if (!response.ok) throw new Error('Не удалось загрузить задачи');
+
+        // Отображаем задачи на экране
+        renderTasksToUI(tasks);
+    } catch (error) {
+        appendTerminalLine('system', `Ошибка сети: ${error.message}`);
+    }
+}
+
+// 4. СОЗДАНИЕ НОВОЙ ЗАДАЧИ
+async function createNewTask(title, description = '', xp_reward = 10) {
+    const token = localStorage.getItem('aether_token');
+    if (!token) return appendTerminalLine('raid', 'Действие заблокировано: авторизуйтесь в системе.');
+
+    try {
+        const response = await fetch(`${API_URL}/tasks`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ title, description, xp_reward })
+        });
+        const newTask = await response.json();
+        if (!response.ok) throw new Error('Ошибка создания задачи в БД');
+
+        appendTerminalLine('loot', `Добавлена новая миссия: "${title}" (+${xp_reward} XP)`);
+        loadTasks(); // Обновляем список задач на экране
+    } catch (error) {
+        appendTerminalLine('system', `Сбой записи задачи: ${error.message}`);
+    }
+}
+
+// Вспомогательная функция вывода логов в твой красивый Activity Terminal
+function appendTerminalLine(tag, message) {
+    const feed = document.querySelector('.at-feed');
+    if (!feed) return;
+    
+    const time = new Date().toLocaleTimeString().slice(0, 5);
+    const line = document.createElement('div');
+    line.className = 'at-line';
+    line.innerHTML = `
+        <span class="at-time">${time}</span>
+        <span class="at-tag ${tag}">${tag}</span>
+        <span class="at-msg">${message}</span>
+    `;
+    
+    // Удаляем сообщение об "пустом терминале", если оно есть
+    const emptyMsg = feed.querySelector('.at-empty');
+    if (emptyMsg) emptyMsg.remove();
+    
+    feed.appendChild(line);
+    feed.scrollTop = feed.scrollHeight;
+}
+
+// Заглушки для интеграции с твоим существующим интерфейсом
+function updateFrontendUI() {
+    // Сюда добавь код, который вставляет данные из currentPlayer в твои элементы HTML
+    // Например: document.getElementById('username-display').innerText = currentPlayer.username;
+    console.log("Данные профиля обновлены:", currentPlayer);
+}
+
+function renderTasksToUI(tasks) {
+    // Сюда добавь свой старый код отрисовки списка задач из массива `tasks`
+    console.log("Рендеринг задач в интерфейс:", tasks);
+}
+
 </script>
 
 </body>
