@@ -1,3 +1,4 @@
+const path = require("path");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const express = require("express");
@@ -24,6 +25,7 @@ app.use(limiter);
 // CORS & JSON
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "../frontend")));
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -168,17 +170,8 @@ async function initDatabase() {
 
 // ============ HEALTH CHECK ============
 
-app.get("/", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({
-      message: "Backend works! 🚀",
-      time: result.rows[0],
-      version: "2.0"
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Database connection error" });
-  }
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/index.html"));
 });
 
 // ============ AUTHENTICATION ROUTES ============
