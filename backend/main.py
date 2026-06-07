@@ -1,4 +1,6 @@
 # backend/main.py
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +41,8 @@ ACCESS_TOKEN_EXPIRE_DAYS = int(os.getenv("ACCESS_TOKEN_EXPIRE_DAYS", "30"))
 
 app = FastAPI(title="Play2Study API v2")
 
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,6 +50,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/")
+async def home():
+    return FileResponse("frontend/index.html")
+
 # --- БАЗА ДАННЫХ ---
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./play2study.db")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
